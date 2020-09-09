@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mask detector</title>
+  <style>
+    body {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    canvas {
+        position: absolute;
+    }
+    h1 {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      position: absolute;
+      color:white;
+      z-index: 9;
+      font-size: 72px;
+      font-weight: 900;
+    }
+</style>
+</head>
+<body>
+  <video id="video" width="800" height="556" autoplay></video>
+  <h1 id="message">Mask Detector</h1>
+
+  <script src="./face-api.min.js"></script>
+  <script>
+    const video = document.getElementById('video')
+    async function playVideo() {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('./models')
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true
+      })
+      video.srcObject = stream
+    }
+    playVideo();
+
+    function randomMessage() {
+      const messages = [
+        "Looking good but, 😷?",
+        "😷!!?",
+        "Masks on aisle four...",
+        "🦠 👀😷"
+      ]
+      return messages[Math.floor(Math.random() * messages.length)]
+    }
+
+video.addEventListener('play', () => {
+
+  // ### Creating a Canvas Element from an Image or Video Element
+  const VideoCanvas = faceapi.createCanvasFromMedia(video);
+  document.body.append(VideoCanvas);
+
+  // ### Init configs
+  const displayValues = {
+      width: video.width,
+      height: video.height
+  };
+
+  let last = {box: undefined, repeats: 0}
+
+  let ctx = VideoCanvas.getContext('2d')
+
+  const textbox = document.getElementById("message")
+  // ### Resize media elements
+  faceapi.matchDimensions(VideoCanvas, displayValues)
+  var box;
+  textbox.textContent = ''
+  setInterval(async () => {
+
+    const singleResult = await faceapi.detectSingleFace(
+      video,
+      new faceapi.TinyFaceDetectorOptions()
+    )
+
+    if (singleResult || (last.box && last.repeats < 5)) {
+      if (singleResult) {
+        box = singleResult.box
+        last.repeats = 0
+      }
+      if (textbox.textContent === '') {
+        textbox.textContent = randomMessage()
+      }
+      ctx.clearRect(0, 0, VideoCanvas.width, VideoCanvas.height)
+      ctx.drawImage(
+        video,
+        box.x, box.y, box.width, box.height,
+        0, 0, VideoCanvas.width, VideoCanvas.height
+      );
+      last.box = box
+      last.repeats++
+    }
+    else {
+      if (textbox.textContent !== '') {
+        textbox.textContent = ''
+      }
+      ctx.clearRect(0, 0, VideoCanvas.width, VideoCanvas.height)
+      ctx.drawImage(
+        video,
+        0, 0, VideoCanvas.width, VideoCanvas.height
+      );
+    }
+
+  }, 100);
+
+})
+
+  </script>
+</body>
+</html>
